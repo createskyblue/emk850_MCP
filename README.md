@@ -8,8 +8,28 @@
 
 ---
 
+## Disclaimer
+
+This project is **free and non-profit** — released for learning, personal, and
+internal use only.
+
+- It was created **solely for the author's automated-testing workflow and for AI
+  assistants to drive the analyzer programmatically**. It is **not** affiliated
+  with, endorsed by, or sponsored by the manufacturer (英加 / Yingjia).
+- The serial protocol documented here was reverse-engineered from the vendor
+  host software and a specific device. **Firmware/model upgrades may change or
+  break the protocol**; this project makes **no guarantee** of compatibility
+  with future versions.
+- **Use at your own risk.** The author accepts **no responsibility** for any
+  damage or loss caused by protocol incompatibility, misuse (e.g., clearing the
+  counter while a device under test is connected), or any other use of this
+  software.
+
+---
+
 ## Table of Contents
 
+- [Disclaimer](#disclaimer)
 - [Features](#features)
 - [The Reverse-Engineered Protocol](#the-reverse-engineered-protocol)
 - [How It Was Reverse-Engineered](#how-it-was-reverse-engineered)
