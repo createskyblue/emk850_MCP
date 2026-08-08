@@ -68,7 +68,17 @@ CMD_REQ_10K = 0x83              # 131
 CMD_REQ_HIGH_SPEED_DATA = 0x84  # 132 高速采样数据帧
 CMD_STORE_100K_PARAM_PRIVATE = 0x85  # 133
 CMD_REQ_100K_PARAM_PRIVATE = 0x86    # 134
+CMD_CALIB_CONTROL = 0xB5        # 181 校准/输出控制 (子命令见下)
 CMD_LCD_ACK = 0xB7              # 183
+
+# cmd 181 (0xB5) 子命令
+CALIB_SUB_SET_VOLT = 6          # 设置输出电压 (mV) —— 实测有效
+CALIB_SUB_CLEAR_CAL = 1         # 清除校准参数
+CALIB_SUB_LOCK_CHANNEL = 3      # 锁档(校准)
+CALIB_SUB_READ_CURRENT = 4      # 读电流
+CALIB_SUB_READ_VOLT = 7         # 读电压
+CALIB_SUB_CHARGE_PARAM = 9      # 充放电参数
+CALIB_SUB_LOAD = 11             # 接(1)/断(0)校准负载(内部继电器)
 
 CMD_NAMES = {
     0x10: "REQ_VERSION", 0x11: "RES_VERSION",

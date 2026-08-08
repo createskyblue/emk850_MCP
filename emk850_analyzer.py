@@ -45,7 +45,7 @@ from emk850_proto import (
     CMD_REQ_READ_CONFIG, CMD_REQ_START, CMD_REQ_STOP, CMD_REQ_VERSION,
     CMD_RESULT, CMD_REQ_HIGH_SPEED_DATA,
     CMD_USER_START_CLEAR, CMD_USER_END_CLEAR,
-    CMD_REQ_POWERON, CMD_REQ_POWEROFF,
+    CMD_CALIB_CONTROL, CALIB_SUB_SET_VOLT,
 )
 
 
@@ -202,35 +202,28 @@ class Emk850Analyzer:
         self._send(CMD_REQ_STOP)
         time.sleep(0.05)
 
-    # ---------------- 电压输出控制 (cmd 18 / cmd 20) ----------------
-    # 注意: 该输出是分析仪作为可编程电压源时的输出端。
-    # 只有当被测产品由分析仪输出端供电(如充电/模拟电池模式)时, 设电压才有观测效果;
-    # 若被测物自带电池(纯测量), 输出命令对测量读数无影响。
-    def _da_for_voltage(self, volt: float) -> int:
-        """输出电压 V -> DAC 值。厂商公式: da = 3320 + (3.0-V)/0.1*25。"""
-        base = 3320
-        if self.cfg.get("pv") == -0.000510204:
-            base = 3300
-        elif self.cfg.get("ov") == -0.78:
-            base = 3340
-        da = int(base + (3.0 - float(volt)) / 0.1 * 25.0)
-        return max(0, min(4095, da))
-
-    def output_on(self, voltage_V: float = 3.0) -> dict:
-        """打开输出并设定电压 (cmd 18, PLPowerOn{da, da_value})。"""
-        volt = float(voltage_V)
-        pl = struct.pack("<Hf", self._da_for_voltage(volt), volt)
-        self._send(CMD_REQ_POWERON, pl)
-        return {"output": "on", "voltage_V": volt, "da": self._da_for_voltage(volt)}
-
-    def output_off(self) -> dict:
-        """关闭输出 (cmd 20, REQ_POWEROFF)。"""
-        self._send(CMD_REQ_POWEROFF)
-        return {"output": "off"}
+    # ---------------- 电压输出控制 (cmd 181 子命令 6) ----------------
+    # 实测有效: cmd 181(0xB5) sub=6 + mV 设置输出电压。
+    # (cmd 18/20 POWERON/POWEROFF 对本设备实测无效, 弃用。)
+    def set_output_voltage(self, voltage_mV: int) -> dict:
+        """设置输出电压 (mV)。cmd 181 sub=6: [0x33][0xB5][len=3][0][6][mV低][mV高]"""
+        mv = int(voltage_mV)
+        mv = max(0, min(65535, mv))
+        payload = bytes([CALIB_SUB_SET_VOLT, mv & 0xFF, (mv >> 8) & 0xFF])
+        self._send(CMD_CALIB_CONTROL, payload)
+        return {"output_mV": mv, "output_V": mv / 1000.0}
 
     def set_output(self, voltage_V: float) -> dict:
-        """设输出电压 (等价 output_on)。"""
-        return self.output_on(voltage_V)
+        """设输出电压 (V)。"""
+        return self.set_output_voltage(int(round(float(voltage_V) * 1000.0)))
+
+    def output_on(self, voltage_V: float = 3.0) -> dict:
+        """打开输出并设电压 (V)。"""
+        return self.set_output(voltage_V)
+
+    def output_off(self) -> dict:
+        """关闭输出 = 设 0mV (实测测量端停在 ~2.6V 下限, 输出端子是否真 0V 需万用表确认)。"""
+        return self.set_output_voltage(0)
 
     def read_power(self, settle_s: float = 0.3, sample_s: float = 0.8) -> dict:
         """读取实时功耗。

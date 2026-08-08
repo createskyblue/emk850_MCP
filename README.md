@@ -209,7 +209,7 @@ python emk850_mcp_server.py --port COM19 --http 8000
 | `/start` | POST | start sampling manually |
 | `/stop` | POST | stop sampling manually |
 | `/clear` | POST | clear counter — requires `{"confirm":true}` and floating input |
-| `/output` | POST | voltage output on/off: `{"state":"on","voltage":3.0}` or `{"state":"off"}`. Effect only observable when the DUT is powered by the analyzer output (charge/battery-sim mode) |
+| `/output` | POST | set output voltage (cmd 181 sub=6, mV): `{"state":"on","voltage":3.3}` → 3.3 V, `{"state":"off"}` → 0 mV. Verified working |
 | `/port` | GET | get current serial port status |
 | `/port/open` | POST | open / switch serial port, body `{"port":"COM19"}` |
 | `/port/close` | POST | close serial port (reader thread stays alive) |

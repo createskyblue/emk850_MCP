@@ -176,17 +176,16 @@ def stop_sampling():
 
 @app.post("/output")
 def set_output(req: OutputRequest):
-    """开关分析仪电压输出 (cmd 18/20)。
+    """设置输出电压 (cmd 181 sub=6, mV)。实测有效。
 
-    ⚠️ 仅当被测产品由分析仪输出端供电(充电/模拟电池模式)时有观测效果;
-       被测物自带电池(纯测量)时, 输出命令不影响测量读数。
+    body: {"state":"on","voltage":3.3} 设 3.3V;  {"state":"off"} 设 0mV。
     """
     with _lock:
         a = get_analyzer()
         try:
             if req.state == "off":
-                return a.output_off()
-            return a.output_on(voltage_V=req.voltage)
+                return a.set_output_voltage(0)
+            return a.set_output(voltage_V=req.voltage)
         except RuntimeError as e:
             raise HTTPException(503, str(e))
 

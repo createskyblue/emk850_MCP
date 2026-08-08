@@ -190,7 +190,7 @@ python emk850_mcp_server.py --port COM19 --http 8000
 | `/start` | POST | 手动启动采样 |
 | `/stop` | POST | 手动停止采样 |
 | `/clear` | POST | 清零计数 —— 需 `{"confirm":true}` 且输入悬空 |
-| `/output` | POST | 电压输出开关：`{"state":"on","voltage":3.0}` 或 `{"state":"off"}`。仅当被测物由分析仪输出端供电（充电/模拟电池模式）时才有观测效果 |
+| `/output` | POST | 设置输出电压（cmd 181 sub=6，mV）：`{"state":"on","voltage":3.3}` 设 3.3V，`{"state":"off"}` 设 0mV。实测有效 |
 | `/port` | GET | 获取当前串口状态 |
 | `/port/open` | POST | 打开 / 切换串口，body `{"port":"COM19"}` |
 | `/port/close` | POST | 关闭串口（后台读线程保持存活） |
