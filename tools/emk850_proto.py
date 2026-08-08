@@ -204,7 +204,8 @@ class BigDataAssembler:
                         "g2", "om2", "o2", "p2", "g3", "om3", "o3", "p3",
                         "o4", "p4", "o5", "p5", "ov", "pv",
                         "ch2_min", "ch2_max", "ch4_min", "ch4_max",
-                        "ch5_min", "ch5_max"]
+                        "ch5_min", "ch5_max",
+                        "om4", "om5"]
 
     def __init__(self):
         self.reset()
@@ -364,12 +365,15 @@ def parse_version(payload: bytes) -> str:
 # ---------- 电流/电压/功耗换算 (HandleSampleHighSpeed, 非5A分支) ----------
 
 # 高速帧: 通道号 -> (om, p, o) 校准系数组
+# 实测修正: 厂商 HandleSampleHighSpeed 的 channel 3/4 用 m_conf2_Channel5.om4/om5
+# (即配置块 232B 的索引 [27]/[28]), 不是 m_conf2.ch4/ch5。
+# 档位: channel0=uA(om1) ch1=nA(om2) ch2=om3(读 µA!) ch3=mA(om4=0.5) ch4=om5
 _HS_CH = {
-    0: ("om1", "p1", "o1"),   # uA 档
-    1: ("om2", "p2", "o2"),   # nA 档
-    2: ("om3", "p3", "o3"),   # mA 档
-    3: ("ch4", "p4", "o4"),   # 4 通道
-    4: ("ch5", "p5", "o5"),   # 5 通道
+    0: ("om1", "p1", "o1"),   # uA 档 (om1)
+    1: ("om2", "p2", "o2"),   # nA 档 (om2)
+    2: ("om3", "p3", "o3"),   # om3 档 (实测读 µA 量级)
+    3: ("om4", "p4", "o4"),   # mA 档 (om4, 实测 T2=0.5)
+    4: ("om5", "p5", "o5"),   # 5 通道 (om5)
 }
 
 
