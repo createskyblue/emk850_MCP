@@ -179,6 +179,10 @@ def set_output(req: OutputRequest):
     """设置输出电压 (cmd 181 sub=6, mV)。实测有效。
 
     body: {"state":"on","voltage":3.3} 设 3.3V;  {"state":"off"} 设 0mV。
+
+    注: 协议没有"直接关断输出"的命令, 输出是常开型电压源;
+        "off" 是通过设 0mV (cmd 181 sub=6) 间接把输出降到最低。
+        实测设 0mV 后测量端读 ~2.6V (测量下限), 输出端子是否真 0V 需万用表确认。
     """
     with _lock:
         a = get_analyzer()

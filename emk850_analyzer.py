@@ -222,7 +222,8 @@ class Emk850Analyzer:
         return self.set_output(voltage_V)
 
     def output_off(self) -> dict:
-        """关闭输出 = 设 0mV (实测测量端停在 ~2.6V 下限, 输出端子是否真 0V 需万用表确认)。"""
+        """关闭输出: 协议无直接关断命令, 通过设 0mV (cmd 181 sub=6) 间接把输出降到最低。
+        实测设 0mV 后测量端读 ~2.6V (测量下限), 输出端子是否真 0V 需万用表确认。"""
         return self.set_output_voltage(0)
 
     def read_power(self, settle_s: float = 0.3, sample_s: float = 0.8) -> dict:
