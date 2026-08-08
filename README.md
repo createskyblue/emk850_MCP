@@ -210,6 +210,16 @@ python emk850_mcp_server.py --port COM19 --http 8000
 | `/stop` | POST | stop sampling manually |
 | `/clear` | POST | clear counter — requires `{"confirm":true}` and floating input |
 | `/output` | POST | set output voltage (cmd 181 sub=6, mV): `{"state":"on","voltage":3.3}` → 3.3 V, `{"state":"off"}` → 0 mV. No direct output-off command exists, so "off" cuts the output indirectly via 0 mV |
+
+**Power-cycle use case** (wake a sleeping chip so the debugger can connect):
+```
+When a target MCU is in low-power sleep/stop mode and the debugger (J-Link /
+ST-Link, ...) cannot connect:
+  1. POST /output  {"state":"off"}              # 0 mV — power down
+  2. wait 10–15 s                                # let the chip fully discharge
+  3. POST /output  {"state":"on","voltage":3.3}  # restore 3.3 V — chip resets & wakes
+  4. debugger can now connect to the target
+```
 | `/port` | GET | get current serial port status |
 | `/port/open` | POST | open / switch serial port, body `{"port":"COM19"}` |
 | `/port/close` | POST | close serial port (reader thread stays alive) |

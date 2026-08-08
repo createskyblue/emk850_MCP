@@ -180,9 +180,16 @@ def set_output(req: OutputRequest):
 
     body: {"state":"on","voltage":3.3} 设 3.3V;  {"state":"off"} 设 0mV。
 
-    注: 协议没有"直接关断输出"的命令, 输出是常开型电压源;
-        "off" 是通过设 0mV (cmd 181 sub=6) 间接把输出降到最低。
-        实测设 0mV 后测量端读 ~2.6V (测量下限), 输出端子是否真 0V 需万用表确认。
+    ⚠️ 协议没有"直接关断输出"的命令, 输出是常开型电压源;
+       "off" 通过设 0mV (cmd 181 sub=6) 间接把输出降到最低。
+       实测设 0mV 后测量端读 ~2.6V (测量下限)。
+
+    💡 典型用途 —— 低功耗芯片掉电重启 (power cycle):
+       当目标芯片进入低功耗休眠/停止模式, 调试器(J-Link/ST-Link 等)无法连接时:
+        1. POST /output {"state":"off"}             # 设 0mV, 切断供电
+        2. 等待 10~15 秒                               # 让芯片彻底掉电放电
+        3. POST /output {"state":"on","voltage":3.3}  # 恢复 3.3V 供电, 芯片复位唤醒
+        4. 此时调试器即可重新连接目标芯片
     """
     with _lock:
         a = get_analyzer()
