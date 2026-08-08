@@ -47,6 +47,11 @@ class PortRequest(BaseModel):
     port: str                    # 串口号, 如 "COM19"
 
 
+class OutputRequest(BaseModel):
+    voltage: float = 3.0         # 输出电压 (V), 仅 on 时有效
+    state: str = "on"            # "on" | "off"
+
+
 def get_analyzer() -> Emk850Analyzer:
     global _analyzer
     if _analyzer is None:
@@ -67,7 +72,7 @@ def index():
         "port": a.port,
         "device": a.version or "(未读取)",
         "commands": ["/version", "/power", "/clear", "/config", "/start", "/stop",
-                     "/port", "/port/open", "/port/close", "/health"],
+                     "/output", "/port", "/port/open", "/port/close", "/health"],
     }
 
 
@@ -167,6 +172,23 @@ def stop_sampling():
         except RuntimeError as e:
             raise HTTPException(503, str(e))
     return {"status": "stopped"}
+
+
+@app.post("/output")
+def set_output(req: OutputRequest):
+    """开关分析仪电压输出 (cmd 18/20)。
+
+    ⚠️ 仅当被测产品由分析仪输出端供电(充电/模拟电池模式)时有观测效果;
+       被测物自带电池(纯测量)时, 输出命令不影响测量读数。
+    """
+    with _lock:
+        a = get_analyzer()
+        try:
+            if req.state == "off":
+                return a.output_off()
+            return a.output_on(voltage_V=req.voltage)
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
 
 
 @app.post("/clear")
