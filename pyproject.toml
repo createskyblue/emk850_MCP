@@ -1,0 +1,15 @@
+[project]
+name = "emk850-mcp"
+version = "1.0.0"
+description = "EMK850+ low-power analyzer protocol toolkit (reverse-engineered) + FastAPI MCP server"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "pyserial>=3.5",
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+]
+
+[tool.uv]
+package = false
