@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""EMK850+ 低功耗分析仪 —— FastAPI HTTP 接口(MCP 封装)。
+"""EMK850+ 低功耗分析仪 —— FastAPI 应用 + MCP 服务器。
 
-提供 HTTP 接口调用分析仪的基本指令:
-  GET  /version   读取设备版本
-  GET  /power     读取实时功耗 (V/I/P), 自动 启动→采样→停止
-  POST /clear     清零计数(空载清零) —— 需设备悬空空载!
-  GET  /config    读取校准配置
-  POST /start     手动启动采样
-  POST /stop      手动停止采样
-  GET  /health    服务/端口状态
+同一套 FastAPI 路由同时提供两种接入方式:
+  1. REST 接口 (原有): GET /power /version /config /health, POST /clear /output ...
+  2. MCP 服务器 (fastapi-mcp): 把 REST 路由自动转换为 MCP 工具,
+     通过 Streamable HTTP 传输挂载在 /mcp。
 
 用法:
   python emk850_mcp_server.py --port COM19 --http 8000
+
+启动后:
+  - REST:   http://localhost:8000/    (浏览器直接看设备状态)
+  - MCP:    http://localhost:8000/mcp (MCP 客户端 / MCP Inspector 连接此地址)
 
 说明:
   - 服务独占串口, 运行期间请勿再用上位机或其他程序占用该端口
@@ -24,14 +24,28 @@ import os
 import sys
 import threading
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import uvicorn
 
+from fastapi_mcp import FastApiMCP
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from emk850_analyzer import Emk850Analyzer
 
-app = FastAPI(title="EMK850+ 低功耗分析仪 MCP", version="1.0.0")
+SERVICE_NAME = "EMK850+ 低功耗分析仪"
+SERVICE_DESCRIPTION = (
+    "EMK850+ 低功耗分析仪 MCP 服务 (串口协议逆向 + 高速采样)。"
+    "提供实时功耗读取 (V/I/P)、可编程电压输出控制 (掉电重启休眠芯片)、"
+    "空载清零、串口管理等工具。"
+)
+
+app = FastAPI(
+    title=f"{SERVICE_NAME} MCP",
+    version="1.0.0",
+    description=SERVICE_DESCRIPTION,
+)
 
 _analyzer: Emk850Analyzer | None = None
 _lock = threading.Lock()
@@ -59,24 +73,21 @@ def get_analyzer() -> Emk850Analyzer:
     return _analyzer
 
 
-@app.on_event("startup")
-def _startup():
-    pass  # 实际初始化在 main() 中完成
-
-
-@app.get("/")
+# 首页/状态页: 仅供浏览器查看, 不进 OpenAPI (从而不作为 MCP 工具暴露)
+@app.get("/", operation_id="index", include_in_schema=False)
 def index():
     a = get_analyzer()
     return {
-        "service": "EMK850+ 低功耗分析仪 MCP",
+        "service": f"{SERVICE_NAME} MCP",
         "port": a.port,
         "device": a.version or "(未读取)",
-        "commands": ["/version", "/power", "/clear", "/config", "/start", "/stop",
-                     "/output", "/port", "/port/open", "/port/close", "/health"],
+        "rest_commands": ["/version", "/power", "/clear", "/config", "/start", "/stop",
+                          "/output", "/port", "/port/open", "/port/close", "/health"],
+        "mcp": "POST /mcp (MCP Streamable HTTP, tools/list -> tools/call)",
     }
 
 
-@app.get("/health")
+@app.get("/health", operation_id="health")
 def health():
     with _lock:
         a = get_analyzer()
@@ -89,14 +100,14 @@ def health():
         }
 
 
-@app.get("/port")
+@app.get("/port", operation_id="get_port_info")
 def get_port():
     """获取当前串口状态。"""
     with _lock:
         return get_analyzer().get_port()
 
 
-@app.post("/port/open")
+@app.post("/port/open", operation_id="open_port")
 def open_port(req: PortRequest):
     """打开(或切换)串口。"""
     with _lock:
@@ -106,14 +117,14 @@ def open_port(req: PortRequest):
             raise HTTPException(400, f"打开串口 {req.port} 失败: {e}")
 
 
-@app.post("/port/close")
+@app.post("/port/close", operation_id="close_port")
 def close_port():
     """关闭串口(后台读线程保持存活)。"""
     with _lock:
         return get_analyzer().close_port()
 
 
-@app.get("/version")
+@app.get("/version", operation_id="read_version")
 def get_version():
     with _lock:
         a = get_analyzer()
@@ -124,7 +135,7 @@ def get_version():
     return {"version": v}
 
 
-@app.get("/power")
+@app.get("/power", operation_id="read_power")
 def get_power(settle_s: float = 0.3, sample_s: float = 0.8):
     with _lock:
         a = get_analyzer()
@@ -137,7 +148,7 @@ def get_power(settle_s: float = 0.3, sample_s: float = 0.8):
     return r
 
 
-@app.get("/config")
+@app.get("/config", operation_id="read_config")
 def get_config():
     with _lock:
         a = get_analyzer()
@@ -150,7 +161,7 @@ def get_config():
     return {"config": cfg}
 
 
-@app.post("/start")
+@app.post("/start", operation_id="start_sampling")
 def start_sampling():
     with _lock:
         a = get_analyzer()
@@ -163,7 +174,7 @@ def start_sampling():
     return {"status": "started"}
 
 
-@app.post("/stop")
+@app.post("/stop", operation_id="stop_sampling")
 def stop_sampling():
     with _lock:
         a = get_analyzer()
@@ -174,7 +185,7 @@ def stop_sampling():
     return {"status": "stopped"}
 
 
-@app.post("/output")
+@app.post("/output", operation_id="set_output")
 def set_output(req: OutputRequest):
     """设置输出电压 (cmd 181 sub=6, mV)。实测有效。
 
@@ -186,9 +197,9 @@ def set_output(req: OutputRequest):
 
     💡 典型用途 —— 低功耗芯片掉电重启 (power cycle):
        当目标芯片进入低功耗休眠/停止模式, 调试器(J-Link/ST-Link 等)无法连接时:
-        1. POST /output {"state":"off"}             # 设 0mV, 切断供电
-        2. 等待 10~15 秒                               # 让芯片彻底掉电放电
-        3. POST /output {"state":"on","voltage":3.3}  # 恢复 3.3V 供电, 芯片复位唤醒
+        1. set_output {"state":"off"}              # 设 0mV, 切断供电
+        2. 等待 10~15 秒                             # 让芯片彻底掉电放电
+        3. set_output {"state":"on","voltage":3.3}  # 恢复 3.3V 供电, 芯片复位唤醒
         4. 此时调试器即可重新连接目标芯片
     """
     with _lock:
@@ -201,7 +212,7 @@ def set_output(req: OutputRequest):
             raise HTTPException(503, str(e))
 
 
-@app.post("/clear")
+@app.post("/clear", operation_id="clear_counter")
 def clear_counter(req: ClearRequest):
     """清零计数(空载清零)。
 
@@ -217,6 +228,29 @@ def clear_counter(req: ClearRequest):
             raise HTTPException(503, str(e))
 
 
+# ---------------------------------------------------------------------------
+# MCP 服务器: 自动把上面的 REST 路由转换为 MCP 工具, 挂载到 /mcp
+# ---------------------------------------------------------------------------
+# 内部用 httpx.ASGITransport 在进程内调用 FastAPI 路由:
+#   - base_url 任意占位 (ASGI 传输不解析 host)
+#   - 默认超时 10s 太短: clear_counter 空载采样默认 wait_s=10, 需调大
+_mcp_http_client = httpx.AsyncClient(
+    transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+    base_url="http://apiserver",
+    timeout=60.0,
+)
+mcp_server = FastApiMCP(
+    app,
+    name="emk850",
+    # fastapi-mcp 0.4.0 内部 Server(name, description) 按位置传参,
+    # 在 mcp 1.x 里该位置是 version 字段; 因此这里传版本号而非描述,
+    # 避免 serverInfo.version 显示成一段中文描述。工具描述由路由 docstring 提供。
+    description="1.0.0",
+    http_client=_mcp_http_client,
+)
+mcp_server.mount_http(mount_path="/mcp")
+
+
 def main():
     global _analyzer
     ap = argparse.ArgumentParser(description="EMK850+ FastAPI MCP")
@@ -227,8 +261,10 @@ def main():
 
     _analyzer = Emk850Analyzer(args.port)
     print(f"[EMK850+] 已打开 {args.port}, 设备: {_analyzer.read_version() or '(未知)'}")
-    print(f"[EMK850+] HTTP 服务: http://{args.host}:{args.http}")
-    print(f"[EMK850+] 接口: /version /power /config /clear /start /stop /health")
+    print(f"[EMK850+] REST 接口: http://{args.host}:{args.http}/")
+    print(f"[EMK850+] MCP 接口:  http://{args.host}:{args.http}/mcp  (Streamable HTTP)")
+    print(f"[EMK850+] MCP 工具:  read_power read_version read_config start_sampling "
+          f"stop_sampling set_output clear_counter open_port close_port get_port_info health")
 
     try:
         uvicorn.run(app, host=args.host, port=args.http, log_level="warning")

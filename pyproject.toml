@@ -3,13 +3,19 @@ name = "emk850-mcp"
 version = "1.0.0"
 description = "EMK850+ low-power analyzer protocol toolkit (reverse-engineered) + FastAPI MCP server"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = [
     "pyserial>=3.5",
     "fastapi>=0.100",
     "uvicorn>=0.23",
+    "fastapi-mcp>=0.4.0",
+    "mcp>=1.12,<2",
 ]
 
 [tool.uv]
 package = false
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+default = true

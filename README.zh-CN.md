@@ -1,8 +1,8 @@
-# EMK850+ 低功耗分析仪 · 串口驱动 + HTTP 接口
+# EMK850+ 低功耗分析仪 · 串口驱动 + MCP 服务器
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-逆向英加 EMK850+ 低功耗分析仪串口协议，提供 Python 命令行工具与 FastAPI HTTP 服务，实现 µA/µW 级功耗自动采集与可编程电源控制，打通 AI 自动化低功耗优化闭环。
+逆向英加 EMK850+ 低功耗分析仪串口协议，提供 Python 命令行工具与 MCP 服务器（Streamable HTTP + REST），实现 µA/µW 级功耗自动采集与可编程电源控制，打通 AI 自动化低功耗优化闭环。
 
 ![EMK850+ 实物图](docs/emk850_photo.jpg)
 
@@ -12,15 +12,15 @@
 
 针对以上痛点，本项目完成协议逆向与功能优化升级，完美适配自动化场景：
 
-- **完整协议逆向**：完整复现设备 64 字节定长帧、0x33 帧头、0x40 分片机制的串口通讯协议，精准适配设备原生通讯逻辑。
+- **协议逆向**：复现设备 64 字节定长帧、0x33 帧头、0x40 分片机制的串口通讯协议
 
-- **稳定性超越原厂**：通过逐字节流式帧同步状态机，解决原厂上位机整块读取数据导致的字节错位、程序卡死、数据异常等问题，设备运行鲁棒性大幅提升。
+- **优化帧解析**：采用逐字节流式帧同步状态机机制，替代原厂上位机整块读取数据的方式，有效解决了因字节错位引发的程序卡死、数据解析异常等问题，显著提升系统鲁棒性
 
-- **轻量化开箱即用**：提供 Python 命令行工具 \+ FastAPI HTTP 服务双模式，支持脚本调用、CI 集成、AI 自动化对接，可快速实现功耗读取、设备输出控制。
+- **轻量化开箱即用**：提供 命令行工具 \+ HTTP 服务双模式，支持脚本调用、CI 集成、AI 自动化
 
-- **解决核心调试难题**：支持可编程电源断电重启操作，可唤醒进入深度休眠、调试器断连的 MCU，解决低功耗调试场景下的核心痛点。
+- **可编程外部电压**：支持可编程电源断电重启操作，可唤醒进入深度休眠、调试器断连的 MCU，解决低功耗调试场景下的核心痛点
 
-- **高精度标准化采集**：支持 µA/µW 级精密功耗采集，搭配空载基线清零功能，可剔除设备空载偏移误差，输出纯净、精准的电压、电流、功率测量数据，所有功能全 HTTP 化，无缝接入各类自动化、AI 流程。
+- **标准化采集**：支持 µA/µW 级精密功耗采集，搭配空载基线清零功能，可剔除设备空载偏移误差，输出纯净、精准的电压、电流、功率测量数据
 
 ## 快速上手
 
@@ -33,11 +33,16 @@ python emk850_analyzer.py power COM19
 电压: 4.202 V   电流: 6.940 uA   功耗: 29.20 uW
 ```
 
-### 启动 HTTP 服务
+### 启动服务（REST + MCP）
 ```bash
 python emk850_mcp_server.py --port COM19 --http 8000
 ```
-普通 FastAPI HTTP 服务（非 MCP 协议），启动后访问 `http://localhost:8000`，任何 HTTP 客户端均可调用，支持功耗查询、输出控制、清零、设备状态等 RESTful 接口。
+启动后同一进程同时提供 **REST 接口** 与 **MCP 服务器** 两套接入方式：
+
+- **REST**：访问 `http://localhost:8000`，任何 HTTP 客户端均可调用
+- **MCP**：连接 `http://localhost:8000/mcp`（MCP Streamable HTTP 传输），支持 Claude / Cursor / MCP Inspector 等 MCP 客户端
+
+REST 端点：
 
 | 端点 | 方法 | 说明 |
 |---|---|---|
@@ -46,6 +51,25 @@ python emk850_mcp_server.py --port COM19 --http 8000
 | `/clear` | POST | 空载清零，需 `{"confirm":true}` |
 | `/version` · `/config` · `/health` | GET | 版本 / 校准参数 / 服务与设备状态 |
 | `/start` · `/stop` | POST | 手动开始 / 停止采样 |
+
+MCP 工具（REST 路由自动转换，工具名 = 路由 operationId）：
+
+| 工具 | 参数 | 说明 |
+|---|---|---|
+| `read_power` | settle_s, sample_s | 读功耗（V/I/P） |
+| `read_version` | – | 读设备版本 |
+| `read_config` | – | 读校准配置 |
+| `start_sampling` / `stop_sampling` | – | 手动开始 / 停止采样 |
+| `set_output` | state, voltage | 设输出电压 / 切断供电（掉电重启休眠芯片） |
+| `clear_counter` | confirm, wait_s | 空载清零（需 `confirm=true`） |
+| `get_port_info` / `open_port` / `close_port` | port | 串口管理 |
+| `health` | – | 服务与设备状态 |
+
+#### 用 MCP 客户端连接
+MCP 端点：`http://localhost:8000/mcp`
+
+- **MCP Inspector / MCP 调试工具**：连接类型选 *Streamable HTTP*，地址填 `http://localhost:8000/mcp`，即可 `initialize` 握手、`tools/list` 列出上述工具、`tools/call` 调用
+- **Claude Desktop / Cursor**：把该 URL 注册为远程 MCP 服务器即可
 
 ## 典型实战：唤醒休眠 MCU
 

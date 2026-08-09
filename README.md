@@ -1,8 +1,8 @@
-# EMK850+ Low-Power Analyzer · Serial Driver + HTTP API
+# EMK850+ Low-Power Analyzer · Serial Driver + MCP Server
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-Reverse-engineered the Yingjia EMK850+ serial protocol, providing a Python CLI and a FastAPI HTTP service for automated µA/µW-level power acquisition and programmable power-supply control, closing the AI-driven low-power optimization loop.
+Reverse-engineered the Yingjia EMK850+ serial protocol, providing a Python CLI and an MCP server (Streamable HTTP + REST) for automated µA/µW-level power acquisition and programmable power-supply control, closing the AI-driven low-power optimization loop.
 
 ![Yingjia EMK850+ low-power analyzer](docs/emk850_photo.jpg)
 
@@ -33,11 +33,16 @@ python emk850_analyzer.py power COM19
 Voltage: 4.202 V   Current: 6.940 uA   Power: 29.20 uW
 ```
 
-### Run the HTTP server
+### Run the server (REST + MCP)
 ```bash
 python emk850_mcp_server.py --port COM19 --http 8000
 ```
-A plain FastAPI HTTP server (not the MCP protocol). After it starts, open `http://localhost:8000`; any HTTP client works, supporting RESTful endpoints for power query, output control, zeroing, and device status.
+The app is now a **real MCP server** (Streamable HTTP transport) while still exposing the REST endpoints, both in one process:
+
+- **REST**: open `http://localhost:8000` — any HTTP client works for power query, output control, zeroing, and device status.
+- **MCP**: connect to `http://localhost:8000/mcp` — works with Claude Desktop, Cursor, MCP Inspector, and any other MCP client.
+
+REST endpoints:
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -46,6 +51,25 @@ A plain FastAPI HTTP server (not the MCP protocol). After it starts, open `http:
 | `/clear` | POST | no-load zero, requires `{"confirm":true}` |
 | `/version` · `/config` · `/health` | GET | version / calibration config / service & device status |
 | `/start` · `/stop` | POST | manually start / stop sampling |
+
+MCP tools (auto-derived from the REST routes, named by route operationId):
+
+| Tool | Inputs | Description |
+|---|---|---|
+| `read_power` | settle_s, sample_s | read power (V/I/P) |
+| `read_version` | – | read device version |
+| `read_config` | – | read calibration config |
+| `start_sampling` / `stop_sampling` | – | manually start / stop sampling |
+| `set_output` | state, voltage | set output voltage / cut power (power-cycle a sleeping MCU) |
+| `clear_counter` | confirm, wait_s | no-load zero (requires `confirm:true`) |
+| `get_port_info` / `open_port` / `close_port` | port | serial port management |
+| `health` | – | service & device status |
+
+#### Connect an MCP client
+MCP endpoint: `http://localhost:8000/mcp`
+
+- **MCP Inspector / debugging tool**: pick the *Streamable HTTP* transport, point it at `http://localhost:8000/mcp`, and you can `initialize`, list the tools above via `tools/list`, and call them via `tools/call`.
+- **Claude Desktop / Cursor**: register the URL as a remote MCP server.
 
 ## Use case: wake a sleeping MCU
 
