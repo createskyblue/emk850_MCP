@@ -23,22 +23,18 @@
 ## 快速上手
 
 ### 命令行读取功耗
-
 ```bash
 uv sync
 python emk850_analyzer.py power COM19
 ```
-
 ```text
 电压: 4.202 V   电流: 6.94 uA   功耗: 29.2 uW
 ```
 
 ### 启动 HTTP 服务
-
 ```bash
 python emk850_mcp_server.py --port COM19 --http 8000
 ```
-
 普通 FastAPI HTTP 服务（非 MCP 协议），启动后访问 `http://localhost:8000`，任何 HTTP 客户端均可调用，支持功耗查询、输出控制、清零、设备状态等 RESTful 接口。
 
 | 端点 | 方法 | 说明 |

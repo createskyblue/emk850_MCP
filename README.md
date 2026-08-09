@@ -23,22 +23,18 @@ To address these pain points, this project reverse-engineers the protocol and up
 ## Quick start
 
 ### Read power from the CLI
-
 ```bash
 uv sync
 python emk850_analyzer.py power COM19
 ```
-
 ```text
 Voltage: 4.202 V   Current: 6.94 uA   Power: 29.2 uW
 ```
 
 ### Run the HTTP server
-
 ```bash
 python emk850_mcp_server.py --port COM19 --http 8000
 ```
-
 A plain FastAPI HTTP server (not the MCP protocol). After it starts, open `http://localhost:8000`; any HTTP client works, supporting RESTful endpoints for power query, output control, zeroing, and device status.
 
 | Endpoint | Method | Description |
