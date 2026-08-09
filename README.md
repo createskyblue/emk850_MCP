@@ -1,6 +1,6 @@
 # EMK850+ Low-Power Analyzer · Serial Driver + HTTP API
 
-Reverse-engineered the Yingjia EMK850+ serial protocol, providing a Python CLI and a FastAPI HTTP service for automated µA/nW-level power acquisition and programmable power-supply control, closing the AI-driven low-power optimization loop.
+Reverse-engineered the Yingjia EMK850+ serial protocol, providing a Python CLI and a FastAPI HTTP service for automated µA/µW-level power acquisition and programmable power-supply control, closing the AI-driven low-power optimization loop.
 
 ![Yingjia EMK850+ low-power analyzer](docs/emk850_photo.jpg)
 
@@ -18,7 +18,7 @@ To address these pain points, this project reverse-engineers the protocol and up
 
 - **Solves a core debugging pain**: supports programmable power-supply power-cycle, waking an MCU that has entered deep sleep and lost the debugger connection, resolving a core low-power debugging pain point.
 
-- **High-precision standardized acquisition**: supports µA/nW-level precision power acquisition, with a no-load baseline-zero function to remove the device's no-load offset error, outputting clean, accurate voltage/current/power measurements; every feature is HTTP-exposed for seamless integration into any automation or AI pipeline.
+- **High-precision standardized acquisition**: supports µA/µW-level precision power acquisition, with a no-load baseline-zero function to remove the device's no-load offset error, outputting clean, accurate voltage/current/power measurements; every feature is HTTP-exposed for seamless integration into any automation or AI pipeline.
 
 ## Quick start
 
@@ -28,7 +28,7 @@ uv sync
 python emk850_analyzer.py power COM19
 ```
 ```text
-Voltage: 4.202 V   Current: 6.94 uA   Power: 29.2 uW
+Voltage: 4.202 V   Current: 6.940 uA   Power: 29.20 uW
 ```
 
 ### Run the HTTP server
