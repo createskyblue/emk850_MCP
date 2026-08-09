@@ -1,5 +1,7 @@
 # EMK850+ 低功耗分析仪 · 串口驱动 + HTTP 接口
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 逆向英加 EMK850+ 低功耗分析仪串口协议，提供 Python 命令行工具与 FastAPI HTTP 服务，实现 µA/µW 级功耗自动采集与可编程电源控制，打通 AI 自动化低功耗优化闭环。
 
 ![EMK850+ 实物图](docs/emk850_photo.jpg)

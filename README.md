@@ -1,5 +1,7 @@
 # EMK850+ Low-Power Analyzer · Serial Driver + HTTP API
 
+[English](README.md) | [中文](README.zh-CN.md)
+
 Reverse-engineered the Yingjia EMK850+ serial protocol, providing a Python CLI and a FastAPI HTTP service for automated µA/µW-level power acquisition and programmable power-supply control, closing the AI-driven low-power optimization loop.
 
 ![Yingjia EMK850+ low-power analyzer](docs/emk850_photo.jpg)
