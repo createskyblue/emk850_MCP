@@ -35,12 +35,12 @@ Voltage: 4.202 V   Current: 6.940 uA   Power: 29.20 uW
 
 ### Run the server (REST + MCP)
 ```bash
-python emk850_mcp_server.py --port COM19 --http 8000
+python emk850_mcp_server.py --port COM19 --http 37749
 ```
 The app is now a **real MCP server** (Streamable HTTP transport) while still exposing the REST endpoints, both in one process:
 
-- **REST**: open `http://localhost:8000` — any HTTP client works for power query, output control, zeroing, and device status.
-- **MCP**: connect to `http://localhost:8000/mcp` — works with Claude Desktop, Cursor, MCP Inspector, and any other MCP client.
+- **REST**: open `http://localhost:37749` — any HTTP client works for power query, output control, zeroing, and device status.
+- **MCP**: connect to `http://localhost:37749/mcp` — works with Claude Desktop, Cursor, MCP Inspector, and any other MCP client.
 
 REST endpoints:
 
@@ -66,9 +66,9 @@ MCP tools (auto-derived from the REST routes, named by route operationId):
 | `health` | – | service & device status |
 
 #### Connect an MCP client
-MCP endpoint: `http://localhost:8000/mcp`
+MCP endpoint: `http://localhost:37749/mcp`
 
-- **MCP Inspector / debugging tool**: pick the *Streamable HTTP* transport, point it at `http://localhost:8000/mcp`, and you can `initialize`, list the tools above via `tools/list`, and call them via `tools/call`.
+- **MCP Inspector / debugging tool**: pick the *Streamable HTTP* transport, point it at `http://localhost:37749/mcp`, and you can `initialize`, list the tools above via `tools/list`, and call them via `tools/call`.
 - **Claude Desktop / Cursor**: register the URL as a remote MCP server.
 
 ## Use case: wake a sleeping MCU

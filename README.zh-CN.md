@@ -35,12 +35,12 @@ python emk850_analyzer.py power COM19
 
 ### 启动服务（REST + MCP）
 ```bash
-python emk850_mcp_server.py --port COM19 --http 8000
+python emk850_mcp_server.py --port COM19 --http 37749
 ```
 启动后同一进程同时提供 **REST 接口** 与 **MCP 服务器** 两套接入方式：
 
-- **REST**：访问 `http://localhost:8000`，任何 HTTP 客户端均可调用
-- **MCP**：连接 `http://localhost:8000/mcp`（MCP Streamable HTTP 传输），支持 Claude / Cursor / MCP Inspector 等 MCP 客户端
+- **REST**：访问 `http://localhost:37749`，任何 HTTP 客户端均可调用
+- **MCP**：连接 `http://localhost:37749/mcp`（MCP Streamable HTTP 传输），支持 Claude / Cursor / MCP Inspector 等 MCP 客户端
 
 REST 端点：
 
@@ -66,9 +66,9 @@ MCP 工具（REST 路由自动转换，工具名 = 路由 operationId）：
 | `health` | – | 服务与设备状态 |
 
 #### 用 MCP 客户端连接
-MCP 端点：`http://localhost:8000/mcp`
+MCP 端点：`http://localhost:37749/mcp`
 
-- **MCP Inspector / MCP 调试工具**：连接类型选 *Streamable HTTP*，地址填 `http://localhost:8000/mcp`，即可 `initialize` 握手、`tools/list` 列出上述工具、`tools/call` 调用
+- **MCP Inspector / MCP 调试工具**：连接类型选 *Streamable HTTP*，地址填 `http://localhost:37749/mcp`，即可 `initialize` 握手、`tools/list` 列出上述工具、`tools/call` 调用
 - **Claude Desktop / Cursor**：把该 URL 注册为远程 MCP 服务器即可
 
 ## 典型实战：唤醒休眠 MCU

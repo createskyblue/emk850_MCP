@@ -7,11 +7,11 @@
      通过 Streamable HTTP 传输挂载在 /mcp。
 
 用法:
-  python emk850_mcp_server.py --port COM19 --http 8000
+  python emk850_mcp_server.py --port COM19 --http 37749
 
 启动后:
-  - REST:   http://localhost:8000/    (浏览器直接看设备状态)
-  - MCP:    http://localhost:8000/mcp (MCP 客户端 / MCP Inspector 连接此地址)
+  - REST:   http://localhost:37749/    (浏览器直接看设备状态)
+  - MCP:    http://localhost:37749/mcp (MCP 客户端 / MCP Inspector 连接此地址)
 
 说明:
   - 服务独占串口, 运行期间请勿再用上位机或其他程序占用该端口
@@ -255,7 +255,7 @@ def main():
     global _analyzer
     ap = argparse.ArgumentParser(description="EMK850+ FastAPI MCP")
     ap.add_argument("--port", default="COM19", help="串口号 (默认 COM19)")
-    ap.add_argument("--http", type=int, default=8000, help="HTTP 端口 (默认 8000)")
+    ap.add_argument("--http", type=int, default=37749, help="HTTP 端口 (默认 37749)")
     ap.add_argument("--host", default="0.0.0.0", help="监听地址 (默认 0.0.0.0)")
     args = ap.parse_args()
 
