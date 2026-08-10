@@ -14,7 +14,7 @@
 | 数据位 | 8 | `MainWindow.cs:7595` |
 | 停止位 | 1 | `MainWindow.cs:7596` |
 | 校验 | None | `MainWindow.cs:7597` |
-| 帧长 | 固定 **64 字节** | `SysReceiveData` 循环按 64 字节对齐读取，不足 64 字节的尾包**直接丢弃** |
+| 帧长 | 固定 **64 字节** | `SysReceiveData` 循环按 64 字节整块读取，不足 64 字节的尾包**直接丢弃** |
 
 ---
 
@@ -31,9 +31,9 @@
 > 协议定义：`mpa/Protocol.cs`（`Protocol` 类，`Pack=1`，`PROTO_SIZE=64`）。
 > 发送时始终发送完整 64 字节（`Utils.StructToBytes` 序列化整个结构体，空余补 0）。
 
-### ⚠️ 接收策略：必须用逐字节流式状态机（强烈建议）
+### ⚠️ 接收策略：逐字节流式状态机
 
-厂商上位机按 64 字节整块对齐读取，尾包不足 64 字节直接丢弃——这是上位机的简化做法，
+厂商上位机按 64 字节整块读取，尾包不足 64 字节直接丢弃——这是上位机的简化做法，
 **Python 脚本不要照抄**。设备回传可能出现字节错位（如电源/复位瞬间的杂讯、半帧数据），
 按整块切会永久失步。
 
@@ -42,17 +42,52 @@
 ```
 状态机三态：
   WAIT_MAGIC   : 逐字节扫描，找到 0x33 进入 HEADER
-  HEADER       : 收 cmd/len/zero 3 字节 → 校验 (len<=60, zero==0)
+  HEADER       : 收 cmd/len/seq 3 字节 → 只校验 len<=60
+                 （seq 不校验：大块数据延续帧里是帧序号 1,2,3...，见 §2 帧表）
                  → 校验失败：丢弃当前这 1 字节，回 WAIT_MAGIC 继续
                  （注意：丢弃的是"匹配失败的那一个字节"，剩余字节继续匹配）
-  PAYLOAD      : 收满 len 字节 → 校验（可选的累加和）→ 出帧
-                 → 校验失败：同样只丢 1 字节，回 WAIT_MAGIC
+  PAYLOAD      : 收满整帧 64 字节 → 出帧，回 WAIT_MAGIC
+                 （帧级无校验；累加和只用于 §6.3 大块数据重组）
 ```
 
 关键点：
 1. **每次只丢 1 个字节**，绝不整帧丢弃。
 2. 任何校验失败后，不是清空缓冲，而是从"下一字节"继续扫描。
 3. 收到完整帧后也要回到 WAIT_MAGIC，处理流中的下一帧。
+
+### ⚠️ 厂商块读取缺陷证据（ilspycmd 11.0 反编译核实，2026-08-10）
+
+厂商上位机 `EMK850+.exe`（.NET 4.7.2 WPF）实际接收逻辑（`MainWindow.cs:6576`，115200 波特率）：
+
+```csharp
+private void SysReceiveData(object sender, SerialDataReceivedEventArgs e) {
+    byte[] array = new byte[64];
+    while (serialPort.BytesToRead >= 64) {              // ① 只认 64 字节整块
+        serialPort.Read(array, 0, 64);
+        Protocol prot = (Protocol)Utils.BytesToStruct(array, typeof(Protocol)); // ② 盲解，不校验 0x33
+        HandleProtocol(prot, array);                    // ③ 按垃圾 cmd 分发
+        // ... 各功能窗口分发
+    }
+    if (serialPort.BytesToRead > 0 && serialPort.BytesToRead < 64) {
+        Console.WriteLine($"2抛掉{serialPort.BytesToRead}字节数据");
+        serialPort.Read(array, 0, serialPort.BytesToRead);  // ④ 尾包 <64 直接丢弃
+    }
+}
+```
+
+缺陷点（代码坐实）：
+
+1. **无 0x33 头扫描、无重新同步**：唯一的对齐假设是"每块恰好 64 字节"。只要一次事件在帧中间触发（读慢 / UI 忙 / 复位瞬态杂讯），首包错位 → 尾包被丢 → 下一事件又从流中段开始 → **永久失步直到重连**。
+2. **尾包无条件丢弃**：每个 `DataReceived` 事件结束时缓冲被清空（整块解析 + 尾包丢弃），`<64` 的残段直接丢掉，既丢数据又加重失步。
+3. **盲解结构体**：`Utils.BytesToStruct`（`Utils.cs:318`）是 `Marshal.Copy` 直拷 64 字节，不校验 `array[0]==0x33`；错位后 `prot.cmd` 是垃圾，`HandleProtocol` 的 switch（`MainWindow.cs:3040`）静默误判/丢弃。
+4. **卡死风险（校准窗口）**：`calWindow.cs:221/245` 直接 `Read(array,0,64)` 不查 `BytesToRead`，全代码未设 `ReadTimeout`（.NET 默认 `InfiniteTimeout=-1`）。复位瞬态半帧 / 短应答时，该事件线程**永久阻塞** → 校准界面卡死。
+
+补充发现：
+
+- `handleAllProtocol` + `serialRingBuffer`（`MainWindow.cs:6640`，10MB 环形缓冲）是**死代码**：`WriteBuff` 全工程无调用点，缓冲从未被喂数据，只有 `ReadBuff` 空转。
+- `mySerialManager`（`mySerialManager.cs:228`，230400 波特率 USB VCP 管理器）的 `SysReceiveData` 是**空壳**，未接真正处理——厂商代码存在两套串口子系统且接收设计不统一。
+
+反编译产物：`tools/decompiled/`（ilspycmd 11.0.0，137 个 .cs）。
 
 ---
 

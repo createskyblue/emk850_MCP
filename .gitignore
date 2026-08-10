@@ -3,3 +3,4 @@ __pycache__/
 *.log
 capture_*.bin
 .venv/
+tools/
